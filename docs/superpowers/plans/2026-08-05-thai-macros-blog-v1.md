@@ -6,7 +6,9 @@
 
 **Architecture:** Astro static site (no backend, no database). Each recipe is one Markdown file with bilingual frontmatter, validated at build time by a shared Zod schema (also reused by a standalone Node recipe-drafting script). Filtering runs entirely client-side over a build-time-embedded JSON index — no network round-trip per filter change.
 
-**Tech Stack:** Astro 5 (Content Layer API), TypeScript, Zod, Vitest, `@anthropic-ai/sdk` (draft script only, not part of the deployed site), `tsx` (run the draft script), `yaml` (frontmatter serialization in the draft script).
+**Tech Stack:** Astro 5 (Content Layer API), TypeScript, Zod, Vitest, `@anthropic-ai/sdk` (draft script only, not part of the deployed site), `tsx` (run the draft script), `yaml` (frontmatter serialization in the draft script), `@fontsource/*` (self-hosted Noto Serif Thai, Anuphan, JetBrains Mono).
+
+**Design:** Tokens and type choices reviewed and revised from AI Auang's own dashboard palette — see `docs/superpowers/design-brief-prompt.md` for the brief and the follow-up visual review it produced. The "Log this meal" button and calorie-calculator/meal-plan nav items from that review ship as non-functional visual placeholders in this plan; wiring them to AI Auang is explicitly out of scope (see spec Non-Goals).
 
 Spec: `docs/superpowers/specs/2026-08-05-thai-macros-blog-design.md`
 
@@ -33,9 +35,13 @@ thai-macros-blog/
 │   │   ├── buildIndexEntry.ts     # Pure fn: collection entry -> lightweight index record
 │   │   ├── buildIndexEntry.test.ts
 │   │   ├── filterRecipes.ts       # Pure fn: filter index records by macro/tag/search criteria
-│   │   └── filterRecipes.test.ts
+│   │   ├── filterRecipes.test.ts
+│   │   ├── sortRecipes.ts         # Pure fn: sort index records by protein/calories
+│   │   └── sortRecipes.test.ts
+│   ├── styles/
+│   │   └── tokens.css             # Design tokens (color/type/spacing) + base element resets
 │   ├── components/
-│   │   ├── Layout.astro           # <html> shell, nav, language switcher links
+│   │   ├── Layout.astro           # <html> shell, nav (+ inert calorie-calc/meal-plan placeholders), language switcher
 │   │   └── RecipeCard.astro       # Server-rendered card (also the shape client JS re-renders)
 │   └── pages/
 │       ├── index.astro            # Redirects to /en/
@@ -63,7 +69,7 @@ thai-macros-blog/
 - Create: `vitest.config.ts`
 - Create: `.gitignore`
 - Create: `.env.example`
-- Create: `src/pages/index.astro` (placeholder, replaced in Task 11)
+- Create: `src/pages/index.astro` (placeholder, replaced in Task 12)
 
 - [ ] **Step 1: Write `package.json`**
 
@@ -141,7 +147,7 @@ dist/
 ANTHROPIC_API_KEY=
 ```
 
-- [ ] **Step 7: Write a placeholder `src/pages/index.astro`** (replaced for real in Task 11 — Astro requires at least one page to run `dev`/`build` successfully at every intermediate step of this plan)
+- [ ] **Step 7: Write a placeholder `src/pages/index.astro`** (replaced for real in Task 12 — Astro requires at least one page to run `dev`/`build` successfully at every intermediate step of this plan)
 
 ```astro
 ---
@@ -704,7 +710,85 @@ git commit -m "feat: add filterRecipes with tests"
 
 ---
 
-### Task 7: `Layout.astro` and `RecipeCard.astro` components
+### Task 7: Self-hosted fonts and design tokens
+
+Design system revised after visual review (see `docs/superpowers/design-brief-prompt.md` and the follow-up mockup applying it) — same family as AI Auang's dashboard but softer: −38% chroma on the accent, warmer/darker ground, reduced text contrast, proper Thai-script type. Tokens and font choices below come directly from that reviewed design.
+
+**Files:**
+- Modify: `package.json`
+- Create: `src/styles/tokens.css`
+
+- [ ] **Step 1: Add font dependencies to `package.json`**
+
+Add to `"dependencies"`:
+
+```json
+"@fontsource/noto-serif-thai": "^5.3.0",
+"@fontsource/anuphan": "^5.3.0",
+"@fontsource/jetbrains-mono": "^5.3.0",
+```
+
+Run: `npm install`
+Expected: installs cleanly.
+
+- [ ] **Step 2: Write `src/styles/tokens.css`**
+
+```css
+/* src/styles/tokens.css */
+:root {
+  --bg-0: #0a0d0f;
+  --bg-1: #0f1316;
+  --bg-2: #151a1e;
+  --bg-3: #1c2226;
+  --line: rgba(221, 227, 225, 0.08);
+  --line-strong: rgba(221, 227, 225, 0.16);
+  --fg: #dde3e1;
+  --fg-dim: #8f9a97;
+  --fg-faint: #5a6562;
+  --green: #3fa877;
+  --green-hi: #58c48f;
+  --amber: #f5a623;
+  --serif: "Noto Serif Thai", serif;
+  --sans: "Anuphan", -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-pill: 999px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+a {
+  color: inherit;
+}
+```
+
+- [ ] **Step 3: Verify the build still succeeds**
+
+Run: `npm run build`
+Expected: succeeds (tokens.css isn't imported by anything yet — that happens in Task 8 — this step just confirms the new dependencies didn't break the install/build).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add package.json package-lock.json src/styles/tokens.css
+git commit -m "feat: add self-hosted fonts (Fontsource) and revised design tokens"
+```
+
+---
+
+### Task 8: `Layout.astro` and `RecipeCard.astro` — redesigned
 
 **Files:**
 - Create: `src/components/Layout.astro`
@@ -712,14 +796,28 @@ git commit -m "feat: add filterRecipes with tests"
 
 - [ ] **Step 1: Write `Layout.astro`**
 
+Imports the fonts and tokens once here since every page uses this layout. The two extra nav items (calorie calculator, meal plan) and their styling exist because they were part of the reviewed design — they are **intentionally non-functional** (`disabled`, `cursor: not-allowed`, a "coming soon" tooltip) since no calorie-calculator or meal-plan feature exists in this plan. Do not wire them to anything.
+
+Weight imports must cover every `font-weight` actually declared against `--sans`/`--serif`/`--mono` in this plan's CSS, or the browser silently falls back to a synthetic/system bold instead of the real font file — exactly the failure mode self-hosting was meant to avoid. Cross-checked against every component in Tasks 8–11: `--sans` (Anuphan) is used at 400 (body default), 600 (`.chip.on`, `.lang-toggle a`, `.log-button`), and 700 (`.detail-body h2`, `.region-tag`); `--serif` (Noto Serif Thai) only ever at 600; `--mono` (JetBrains Mono) at 400 (default) and 700 (macro values).
+
 ```astro
 ---
 // src/components/Layout.astro
+import "@fontsource/noto-serif-thai/600.css";
+import "@fontsource/anuphan/400.css";
+import "@fontsource/anuphan/600.css";
+import "@fontsource/anuphan/700.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/700.css";
+import "../styles/tokens.css";
+
 interface Props {
   lang: "en" | "th";
   title: string;
 }
 const { lang, title } = Astro.props;
+
+const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming soon";
 ---
 <!doctype html>
 <html lang={lang}>
@@ -729,24 +827,100 @@ const { lang, title } = Astro.props;
     <title>{title} — Thai Macros</title>
   </head>
   <body>
-    <nav>
-      <a href={`/${lang}/`}>{lang === "th" ? "สูตรอาหาร" : "Recipes"}</a>
-      <span class="lang-switcher">
+    <nav class="site-nav">
+      <a class="wordmark" href={`/${lang}/`}>
+        Thai<span class="accent-dot">·</span>Macros
+      </a>
+      <div class="nav-links">
+        <a href={`/${lang}/`}>{lang === "th" ? "สูตรอาหาร" : "Recipes"}</a>
+        <button type="button" class="nav-placeholder" disabled title={comingSoonTitle}>
+          {lang === "th" ? "คำนวณแคล" : "Calorie calculator"}
+        </button>
+        <button type="button" class="nav-placeholder" disabled title={comingSoonTitle}>
+          {lang === "th" ? "แผนมื้ออาหาร" : "Meal plan"}
+        </button>
+      </div>
+      <div class="lang-toggle">
         <a href="/en/" aria-current={lang === "en" ? "page" : undefined}>EN</a>
-        ·
         <a href="/th/" aria-current={lang === "th" ? "page" : undefined}>TH</a>
-      </span>
+      </div>
     </nav>
-    <main>
+    <main class="page">
       <slot />
     </main>
   </body>
 </html>
+
+<style>
+  .site-nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 19px;
+    text-decoration: none;
+    color: var(--fg);
+  }
+  .wordmark .accent-dot {
+    color: var(--green-hi);
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex: 1;
+    font-size: 13.5px;
+  }
+  .nav-links a {
+    text-decoration: none;
+    color: var(--fg-dim);
+  }
+  .nav-placeholder {
+    background: none;
+    border: none;
+    color: var(--fg-faint);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    cursor: not-allowed;
+    padding: 0;
+  }
+  .lang-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    padding: 3px;
+  }
+  .lang-toggle a {
+    text-decoration: none;
+    color: var(--fg-dim);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    display: inline-block;
+  }
+  .lang-toggle a[aria-current="page"] {
+    background: var(--green);
+    color: var(--bg-0);
+  }
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 28px 80px;
+  }
+</style>
 ```
 
 - [ ] **Step 2: Write `RecipeCard.astro`**
 
-Server-rendered card used for the initial page load. Its HTML shape is deliberately mirrored (not shared via import — Astro components can't be rendered from a `<script>` block) by the plain-JS `renderGrid()` function in Task 8's browse page, so client-side re-filtering produces visually identical cards.
+Server-rendered card used for the initial page load. Its markup and classes (`.recipe-card`, `.card-photo`, `.region-tag`, `.card-body`, `.subtitle`, `.macro-strip`, `.m`/`.v`/`.l`, `.kcal`) are **deliberately duplicated** by the plain-JS `render()` function in Task 9's browse page — Astro component styles can't be imported into a `<script>` block, so the browse page re-declares matching CSS under `#recipe-grid :global(...)`. If this component's markup or class names change, that duplicate block must change too.
 
 ```astro
 ---
@@ -759,11 +933,23 @@ interface Props {
 }
 const { recipe, lang } = Astro.props;
 const title = lang === "th" ? recipe.title_th : recipe.title_en;
+const subtitle = lang === "th" ? recipe.title_en : recipe.title_th;
+const regionTag = recipe.regionTags[0];
 ---
 <a class="recipe-card" href={`/${lang}/recipes/${recipe.id}`}>
-  <img src={recipe.photo} alt={title} loading="lazy" />
-  <h3>{title}</h3>
-  <p class="macros">{recipe.calories} kcal · {recipe.protein}g protein</p>
+  <div class="card-photo" style={`background-image: url(${recipe.photo})`}>
+    {regionTag && <span class="region-tag">{regionTag}</span>}
+  </div>
+  <div class="card-body">
+    <h3>{title}</h3>
+    <p class="subtitle">{subtitle}</p>
+    <div class="macro-strip">
+      <div class="m kcal"><span class="v">{recipe.calories}</span><span class="l">kcal</span></div>
+      <div class="m"><span class="v">{recipe.protein}g</span><span class="l">protein</span></div>
+      <div class="m"><span class="v">{recipe.carbs}g</span><span class="l">carbs</span></div>
+      <div class="m"><span class="v">{recipe.fat}g</span><span class="l">fat</span></div>
+    </div>
+  </div>
 </a>
 
 <style>
@@ -771,24 +957,76 @@ const title = lang === "th" ? recipe.title_th : recipe.title_en;
     display: block;
     text-decoration: none;
     color: inherit;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     overflow: hidden;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    transition: border-color 0.15s, transform 0.15s;
   }
-  .recipe-card img {
-    width: 100%;
+  .recipe-card:hover {
+    border-color: var(--line-strong);
+    transform: translateY(-2px);
+  }
+  .card-photo {
     aspect-ratio: 4 / 3;
-    object-fit: cover;
-    display: block;
+    background-color: var(--bg-2);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
   }
-  .recipe-card h3 {
-    margin: 0.5rem 0.75rem 0.25rem;
-    font-size: 1rem;
+  .region-tag {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--fg);
+    padding: 4px 9px;
+    border-radius: var(--radius-pill);
   }
-  .recipe-card .macros {
-    margin: 0 0.75rem 0.75rem;
-    font-size: 0.85rem;
-    color: #666;
+  .card-body {
+    padding: 14px 16px 16px;
+  }
+  .card-body h3 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 17px;
+    margin: 0 0 2px;
+    line-height: 1.25;
+  }
+  .card-body .subtitle {
+    font-size: 12.5px;
+    color: var(--fg-faint);
+    margin: 0 0 10px;
+  }
+  .macro-strip {
+    display: flex;
+    gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+  .macro-strip .m {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .macro-strip .m .v {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--fg);
+  }
+  .macro-strip .m .l {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-faint);
+  }
+  .macro-strip .m.kcal .v {
+    color: var(--amber);
   }
 </style>
 ```
@@ -797,17 +1035,90 @@ const title = lang === "th" ? recipe.title_th : recipe.title_en;
 
 ```bash
 git add src/components/Layout.astro src/components/RecipeCard.astro
-git commit -m "feat: add Layout and RecipeCard components"
+git commit -m "feat: redesigned Layout and RecipeCard with AI-Auang-derived tokens and fonts"
 ```
 
 ---
 
-### Task 8: Browse/grid page with client-side filtering
+### Task 9: `sortRecipes` and the browse/grid page — redesigned
 
 **Files:**
+- Create: `src/lib/sortRecipes.ts`
+- Test: `src/lib/sortRecipes.test.ts`
 - Create: `src/pages/[lang]/index.astro`
 
-- [ ] **Step 1: Write the page**
+- [ ] **Step 1: Write the failing test for `sortRecipes`**
+
+```ts
+// src/lib/sortRecipes.test.ts
+import { describe, it, expect } from "vitest";
+import { sortRecipes } from "./sortRecipes";
+import type { RecipeIndexEntry } from "./buildIndexEntry";
+
+const low: RecipeIndexEntry = {
+  id: "low", title_th: "", title_en: "Low", photo: "",
+  calories: 100, protein: 5, carbs: 0, fat: 0,
+  dietTags: [], mealTypeTags: [], regionTags: [],
+};
+const high: RecipeIndexEntry = {
+  id: "high", title_th: "", title_en: "High", photo: "",
+  calories: 500, protein: 30, carbs: 0, fat: 0,
+  dietTags: [], mealTypeTags: [], regionTags: [],
+};
+
+describe("sortRecipes", () => {
+  it("sorts by protein descending by default", () => {
+    expect(sortRecipes([low, high], "protein")).toEqual([high, low]);
+  });
+
+  it("sorts by protein ascending when requested", () => {
+    expect(sortRecipes([low, high], "protein", "asc")).toEqual([low, high]);
+  });
+
+  it("sorts by calories", () => {
+    expect(sortRecipes([high, low], "calories", "asc")).toEqual([low, high]);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = [low, high];
+    sortRecipes(input, "protein");
+    expect(input).toEqual([low, high]);
+  });
+});
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `npx vitest run src/lib/sortRecipes.test.ts`
+Expected: FAIL — `Cannot find module './sortRecipes'`
+
+- [ ] **Step 3: Write the implementation**
+
+```ts
+// src/lib/sortRecipes.ts
+import type { RecipeIndexEntry } from "./buildIndexEntry";
+
+export type SortField = "protein" | "calories";
+export type SortDirection = "asc" | "desc";
+
+export function sortRecipes(
+  recipes: RecipeIndexEntry[],
+  field: SortField,
+  direction: SortDirection = "desc"
+): RecipeIndexEntry[] {
+  const sorted = [...recipes].sort((a, b) => a[field] - b[field]);
+  return direction === "desc" ? sorted.reverse() : sorted;
+}
+```
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+Run: `npx vitest run src/lib/sortRecipes.test.ts`
+Expected: PASS — 4 tests passed
+
+- [ ] **Step 5: Write the browse page**
+
+Filter bar (search + max-calories + sort) sits above a row of preset chips (matching the reviewed design), which sits above the grid. Presets are shortcuts that set specific `filterRecipes` criteria — `high-protein`/`low-carb`/`vegetarian` set `dietTags`, `low-cal` sets a fixed `maxCalories` of 300, `one-dish` sets `mealTypeTags`. `one-dish` is a plain string tag value in the existing free-form `mealTypeTags` array — no schema change; recipes need `one-dish` added to their `mealTypeTags` list to appear under that preset (the two sample recipes don't have it, so that preset legitimately returns zero results until a recipe is tagged with it — this is expected, not a bug). When the `low-cal` preset is active it overrides the manual max-calories field; otherwise the manual field applies.
 
 ```astro
 ---
@@ -824,49 +1135,57 @@ export async function getStaticPaths() {
 const { lang } = Astro.params as { lang: "en" | "th" };
 const collection = await getCollection("recipes");
 const index = collection.map((entry) => buildIndexEntry(entry.id, entry.data));
-const allDietTags = [...new Set(index.flatMap((r) => r.dietTags))].sort();
-const allMealTypeTags = [...new Set(index.flatMap((r) => r.mealTypeTags))].sort();
+
+const PRESETS = [
+  { id: "all", th: "ทั้งหมด", en: "All" },
+  { id: "high-protein", th: "โปรตีนสูง", en: "High protein" },
+  { id: "low-cal", th: "แคลต่ำ", en: "Low cal" },
+  { id: "low-carb", th: "คาร์บต่ำ", en: "Low carb" },
+  { id: "vegetarian", th: "มังสวิรัติ", en: "Vegetarian" },
+  { id: "one-dish", th: "จานเดียว", en: "One dish" },
+];
 ---
 <Layout lang={lang} title={lang === "th" ? "สูตรอาหาร" : "Recipes"}>
   <script type="application/json" id="recipe-index" set:html={JSON.stringify(index)} />
 
-  <form id="filter-form">
+  <div class="filter-bar">
     <input
       type="search"
       id="search-input"
-      placeholder={lang === "th" ? "ค้นหาสูตรอาหาร" : "Search recipes"}
+      class="search-field"
+      placeholder={lang === "th" ? "ค้นหาเมนู" : "Search dishes"}
     />
-    <label>
-      {lang === "th" ? "แคลอรี่ต่ำสุด" : "Min calories"}
-      <input type="number" id="min-calories" min="0" />
-    </label>
-    <label>
-      {lang === "th" ? "แคลอรี่สูงสุด" : "Max calories"}
+    <div class="range-field">
+      <span class="range-label">{lang === "th" ? "แคล/เสิร์ฟ ≤" : "kcal/serving ≤"}</span>
       <input type="number" id="max-calories" min="0" />
-    </label>
-    <label>
-      {lang === "th" ? "โปรตีนขั้นต่ำ (กรัม)" : "Min protein (g)"}
-      <input type="number" id="min-protein" min="0" />
-    </label>
-    <fieldset>
-      <legend>{lang === "th" ? "ประเภทอาหาร" : "Diet"}</legend>
-      {allDietTags.map((tag) => (
-        <label><input type="checkbox" name="dietTags" value={tag} /> {tag}</label>
-      ))}
-    </fieldset>
-    <fieldset>
-      <legend>{lang === "th" ? "มื้ออาหาร" : "Meal type"}</legend>
-      {allMealTypeTags.map((tag) => (
-        <label><input type="checkbox" name="mealTypeTags" value={tag} /> {tag}</label>
-      ))}
-    </fieldset>
-  </form>
+    </div>
+    <select id="sort-select" class="sort-select">
+      <option value="">{lang === "th" ? "เรียงตาม" : "Sort"}</option>
+      <option value="protein-desc">{lang === "th" ? "โปรตีนสูงสุด" : "Protein ↓"}</option>
+      <option value="protein-asc">{lang === "th" ? "โปรตีนต่ำสุด" : "Protein ↑"}</option>
+      <option value="calories-asc">{lang === "th" ? "แคลน้อยสุด" : "Calories ↑"}</option>
+      <option value="calories-desc">{lang === "th" ? "แคลมากสุด" : "Calories ↓"}</option>
+    </select>
+  </div>
+
+  <div class="preset-row" id="preset-row">
+    {PRESETS.map((p) => (
+      <button type="button" class={p.id === "all" ? "chip on" : "chip"} data-preset={p.id}>
+        {lang === "th" ? p.th : p.en}
+      </button>
+    ))}
+  </div>
+
+  <div class="grid-title">
+    <h2>{lang === "th" ? "สูตรอาหาร" : "Recipes"}</h2>
+    <span class="count" id="result-count"></span>
+  </div>
 
   <p id="empty-state" hidden>
     {lang === "th" ? "ไม่พบสูตรอาหารที่ตรงกัน ลองปรับตัวกรอง" : "No recipes match, try loosening filters"}
   </p>
 
-  <div id="recipe-grid" class="grid">
+  <div id="recipe-grid" class="recipe-grid">
     {collection.map((entry) => (
       <RecipeCard recipe={buildIndexEntry(entry.id, entry.data)} lang={lang} />
     ))}
@@ -875,81 +1194,313 @@ const allMealTypeTags = [...new Set(index.flatMap((r) => r.mealTypeTags))].sort(
 
 <script>
   import { filterRecipes, type RecipeFilters } from "../../lib/filterRecipes";
+  import { sortRecipes, type SortField, type SortDirection } from "../../lib/sortRecipes";
   import type { RecipeIndexEntry } from "../../lib/buildIndexEntry";
 
   const dataEl = document.getElementById("recipe-index");
   const allRecipes: RecipeIndexEntry[] = JSON.parse(dataEl?.textContent ?? "[]");
   const grid = document.getElementById("recipe-grid") as HTMLDivElement;
   const emptyState = document.getElementById("empty-state") as HTMLParagraphElement;
-  const form = document.getElementById("filter-form") as HTMLFormElement;
+  const resultCount = document.getElementById("result-count") as HTMLSpanElement;
+  const searchInput = document.getElementById("search-input") as HTMLInputElement;
+  const maxCaloriesInput = document.getElementById("max-calories") as HTMLInputElement;
+  const sortSelect = document.getElementById("sort-select") as HTMLSelectElement;
+  const presetRow = document.getElementById("preset-row") as HTMLDivElement;
   const lang = (document.documentElement.lang === "th" ? "th" : "en") as "th" | "en";
 
-  function currentFilters(): RecipeFilters {
-    const search = (document.getElementById("search-input") as HTMLInputElement).value.trim();
-    const minCalories = (document.getElementById("min-calories") as HTMLInputElement).value;
-    const maxCalories = (document.getElementById("max-calories") as HTMLInputElement).value;
-    const minProtein = (document.getElementById("min-protein") as HTMLInputElement).value;
-    const dietTags = Array.from(
-      form.querySelectorAll<HTMLInputElement>('input[name="dietTags"]:checked')
-    ).map((el) => el.value);
-    const mealTypeTags = Array.from(
-      form.querySelectorAll<HTMLInputElement>('input[name="mealTypeTags"]:checked')
-    ).map((el) => el.value);
-    return {
-      lang,
-      search: search || undefined,
-      minCalories: minCalories ? Number(minCalories) : undefined,
-      maxCalories: maxCalories ? Number(maxCalories) : undefined,
-      minProtein: minProtein ? Number(minProtein) : undefined,
-      dietTags: dietTags.length ? dietTags : undefined,
-      mealTypeTags: mealTypeTags.length ? mealTypeTags : undefined,
-    };
+  let activePreset = "all";
+
+  function presetToFilters(preset: string): Partial<RecipeFilters> {
+    switch (preset) {
+      case "high-protein":
+        return { dietTags: ["high-protein"] };
+      case "low-cal":
+        return { maxCalories: 300 };
+      case "low-carb":
+        return { dietTags: ["low-carb"] };
+      case "vegetarian":
+        return { dietTags: ["vegetarian"] };
+      case "one-dish":
+        return { mealTypeTags: ["one-dish"] };
+      default:
+        return {};
+    }
   }
 
-  function renderGrid(recipes: RecipeIndexEntry[]) {
-    grid.innerHTML = recipes
+  function render() {
+    const search = searchInput.value.trim();
+    const manualMaxCalories = maxCaloriesInput.value ? Number(maxCaloriesInput.value) : undefined;
+    const presetFilters = presetToFilters(activePreset);
+
+    const filters: RecipeFilters = {
+      lang,
+      search: search || undefined,
+      maxCalories: presetFilters.maxCalories ?? manualMaxCalories,
+      dietTags: presetFilters.dietTags,
+      mealTypeTags: presetFilters.mealTypeTags,
+    };
+
+    let results = filterRecipes(allRecipes, filters);
+
+    if (sortSelect.value) {
+      const [field, direction] = sortSelect.value.split("-") as [SortField, SortDirection];
+      results = sortRecipes(results, field, direction);
+    }
+
+    grid.innerHTML = results
       .map((r) => {
         const title = lang === "th" ? r.title_th : r.title_en;
+        const subtitle = lang === "th" ? r.title_en : r.title_th;
+        const regionTag = r.regionTags[0];
         return `<a class="recipe-card" href="/${lang}/recipes/${r.id}">
-          <img src="${r.photo}" alt="${title}" loading="lazy" />
-          <h3>${title}</h3>
-          <p class="macros">${r.calories} kcal · ${r.protein}g protein</p>
+          <div class="card-photo" style="background-image: url(${r.photo})">
+            ${regionTag ? `<span class="region-tag">${regionTag}</span>` : ""}
+          </div>
+          <div class="card-body">
+            <h3>${title}</h3>
+            <p class="subtitle">${subtitle}</p>
+            <div class="macro-strip">
+              <div class="m kcal"><span class="v">${r.calories}</span><span class="l">kcal</span></div>
+              <div class="m"><span class="v">${r.protein}g</span><span class="l">protein</span></div>
+              <div class="m"><span class="v">${r.carbs}g</span><span class="l">carbs</span></div>
+              <div class="m"><span class="v">${r.fat}g</span><span class="l">fat</span></div>
+            </div>
+          </div>
         </a>`;
       })
       .join("");
-    emptyState.hidden = recipes.length > 0;
-    grid.hidden = recipes.length === 0;
+
+    emptyState.hidden = results.length > 0;
+    grid.hidden = results.length === 0;
+    resultCount.textContent =
+      lang === "th" ? `${results.length} เมนูที่ตรงกับเงื่อนไข` : `${results.length} recipes matched`;
   }
 
-  form.addEventListener("input", () => {
-    renderGrid(filterRecipes(allRecipes, currentFilters()));
+  searchInput.addEventListener("input", render);
+  maxCaloriesInput.addEventListener("input", render);
+  sortSelect.addEventListener("change", render);
+  presetRow.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-preset]");
+    if (!button) return;
+    activePreset = button.dataset.preset ?? "all";
+    presetRow.querySelectorAll(".chip").forEach((chip) => chip.classList.remove("on"));
+    button.classList.add("on");
+    render();
   });
+
+  render();
 </script>
+
+<style>
+  .filter-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .search-field {
+    flex: 1;
+    min-width: 200px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 13.5px;
+  }
+  .search-field::placeholder {
+    color: var(--fg-faint);
+  }
+  .range-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+  }
+  .range-label {
+    font-size: 12px;
+    color: var(--fg-faint);
+    white-space: nowrap;
+  }
+  .range-field input {
+    width: 64px;
+    background: none;
+    border: none;
+    color: var(--fg);
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+  }
+  .sort-select {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 13px;
+  }
+  .preset-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
+  .chip {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    padding: 7px 14px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    color: var(--fg-dim);
+    background: var(--bg-1);
+    cursor: pointer;
+  }
+  .chip.on {
+    background: color-mix(in srgb, var(--green) 16%, transparent);
+    border-color: var(--green);
+    color: var(--green-hi);
+    font-weight: 600;
+  }
+  .grid-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .grid-title h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 22px;
+    margin: 0;
+  }
+  .grid-title .count {
+    color: var(--fg-faint);
+    font-size: 12.5px;
+  }
+  .recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  /* Duplicated from RecipeCard.astro — see the note in Task 8 Step 2. Needed
+     because the client script's render() re-renders cards as raw HTML strings
+     on every filter change, and Astro component <style> blocks can't be
+     imported into a <script> tag. */
+  #recipe-grid :global(.recipe-card) {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  #recipe-grid :global(.recipe-card:hover) {
+    border-color: var(--line-strong);
+    transform: translateY(-2px);
+  }
+  #recipe-grid :global(.card-photo) {
+    aspect-ratio: 4 / 3;
+    background-color: var(--bg-2);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+  }
+  #recipe-grid :global(.region-tag) {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--fg);
+    padding: 4px 9px;
+    border-radius: var(--radius-pill);
+  }
+  #recipe-grid :global(.card-body) {
+    padding: 14px 16px 16px;
+  }
+  #recipe-grid :global(.card-body h3) {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 17px;
+    margin: 0 0 2px;
+    line-height: 1.25;
+  }
+  #recipe-grid :global(.card-body .subtitle) {
+    font-size: 12.5px;
+    color: var(--fg-faint);
+    margin: 0 0 10px;
+  }
+  #recipe-grid :global(.macro-strip) {
+    display: flex;
+    gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+  #recipe-grid :global(.macro-strip .m) {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  #recipe-grid :global(.macro-strip .m .v) {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--fg);
+  }
+  #recipe-grid :global(.macro-strip .m .l) {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-faint);
+  }
+  #recipe-grid :global(.macro-strip .m.kcal .v) {
+    color: var(--amber);
+  }
+</style>
 ```
 
-- [ ] **Step 2: Verify the build succeeds**
+- [ ] **Step 6: Verify the build succeeds**
 
 Run: `npm run build`
 Expected: succeeds, produces `dist/en/index.html` and `dist/th/index.html`.
 
-- [ ] **Step 3: Manual check — dev server**
+- [ ] **Step 7: Manual check — dev server**
 
 Run: `npm run dev`, open `http://localhost:4321/en/`
-Expected: both sample recipes render as cards. Type "tom" in search — grid narrows to Tom Yum Goong only. Clear search, check the "high-protein" diet checkbox — both recipes still show (both are tagged high-protein). Set min calories to 400 — only Pad Thai shows. Set min calories to 10000 — grid empties and the "no recipes match" message appears.
+Expected:
+- Both sample recipes render as cards with the new dark/serif/amber-kcal styling, "All" preset active.
+- Type "tom" in search — grid narrows to Tom Yum Goong only, count updates to "1 recipes matched".
+- Clear search. Click the "High protein" preset — both recipes still show (both are tagged `high-protein`), chip highlights green.
+- Click "Low cal" preset — grid empties, "no recipes match" message shows (both sample recipes are over 300 kcal — expected, not a bug).
+- Click "All" to reset. Set the kcal field to 400 — only Tom Yum Goong (310 kcal) shows, Pad Thai (486) drops out.
+- Change sort to "Protein ↓" with no filters active — Tom Yum Goong (28g protein) lists before Pad Thai (22g).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add "src/pages/[lang]/index.astro"
-git commit -m "feat: add browse page with client-side macro/tag/search filtering"
+git add src/lib/sortRecipes.ts src/lib/sortRecipes.test.ts "src/pages/[lang]/index.astro"
+git commit -m "feat: add sortRecipes and redesigned browse page with preset chips and sort"
 ```
 
 ---
 
-### Task 9: Recipe detail page
+### Task 10: Recipe detail page — redesigned, with the AI Auang log placeholder
 
 **Files:**
 - Create: `src/pages/[lang]/recipes/[slug].astro`
+
+The "Log this meal / บันทึกลง AI Auang" button is **intentionally non-functional** — `disabled`, non-interactive styling, a "coming soon" tooltip. It was part of the reviewed design, but wiring it to AI Auang is explicitly out of scope for this plan (see spec Non-Goals) — real wiring is Spec 2's job, once that spec decides the import mechanism.
 
 - [ ] **Step 1: Write the page**
 
@@ -974,55 +1525,242 @@ const { lang } = Astro.params as { lang: "en" | "th" };
 const { entry } = Astro.props;
 const { data } = entry;
 const title = lang === "th" ? data.title_th : data.title_en;
+const subtitle = lang === "th" ? data.title_en : data.title_th;
+const logButtonLabel = lang === "th" ? "บันทึกลง AI Auang" : "Log this meal";
+const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming soon";
 ---
 <Layout lang={lang} title={title}>
-  <article>
-    <img src={data.photo} alt={title} />
-    <h1>{title}</h1>
-    <dl class="macros">
-      <div><dt>{lang === "th" ? "แคลอรี่" : "Calories"}</dt><dd>{data.calories} kcal</dd></div>
-      <div><dt>{lang === "th" ? "โปรตีน" : "Protein"}</dt><dd>{data.protein}g</dd></div>
-      <div><dt>{lang === "th" ? "คาร์บ" : "Carbs"}</dt><dd>{data.carbs}g</dd></div>
-      <div><dt>{lang === "th" ? "ไขมัน" : "Fat"}</dt><dd>{data.fat}g</dd></div>
-    </dl>
+  <article class="recipe-detail">
+    <div class="hero" style={`background-image: url(${data.photo})`}>
+      {data.regionTags[0] && <span class="region-tag">{data.regionTags[0]}</span>}
+    </div>
 
-    <h2>{lang === "th" ? "ส่วนผสม" : "Ingredients"}</h2>
-    <ul class="ingredients">
-      {data.ingredients.map((ing) => (
-        <li>{lang === "th" ? ing.name_th : ing.name_en} — {ing.amount}</li>
-      ))}
-    </ul>
+    <div class="detail-body">
+      <div class="detail-head">
+        <div>
+          <h1>{title}</h1>
+          <p class="subtitle">{subtitle}</p>
+        </div>
+        <button type="button" class="log-button" disabled title={comingSoonTitle}>
+          {logButtonLabel}
+        </button>
+      </div>
 
-    <h2>{lang === "th" ? "วิธีทำ" : "Steps"}</h2>
-    <ol class="steps">
-      {data.steps.map((step) => (
-        <li>{lang === "th" ? step.th : step.en}</li>
-      ))}
-    </ol>
+      <div class="macro-panel">
+        <div class="cell kcal">
+          <div class="v">{data.calories}</div>
+          <div class="l">{lang === "th" ? "แคล" : "Calories"}</div>
+        </div>
+        <div class="cell">
+          <div class="v">{data.protein}g</div>
+          <div class="l">{lang === "th" ? "โปรตีน" : "Protein"}</div>
+        </div>
+        <div class="cell">
+          <div class="v">{data.carbs}g</div>
+          <div class="l">{lang === "th" ? "คาร์บ" : "Carbs"}</div>
+        </div>
+        <div class="cell">
+          <div class="v">{data.fat}g</div>
+          <div class="l">{lang === "th" ? "ไขมัน" : "Fat"}</div>
+        </div>
+      </div>
+
+      <h2>{lang === "th" ? "ส่วนผสม" : "Ingredients"}</h2>
+      <ul class="ing-list">
+        {data.ingredients.map((ing) => (
+          <li>
+            <span>{lang === "th" ? ing.name_th : ing.name_en}</span>
+            <span class="amt">{ing.amount}</span>
+          </li>
+        ))}
+      </ul>
+
+      <h2>{lang === "th" ? "วิธีทำ" : "Steps"}</h2>
+      <ol class="step-list">
+        {data.steps.map((step) => (
+          <li>{lang === "th" ? step.th : step.en}</li>
+        ))}
+      </ol>
+    </div>
   </article>
 </Layout>
+
+<style>
+  .recipe-detail {
+    max-width: 640px;
+    margin: 0 auto;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .hero {
+    aspect-ratio: 16 / 9;
+    background-color: var(--bg-2);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: flex-end;
+    padding: 22px;
+  }
+  .region-tag {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--fg);
+    padding: 5px 11px;
+    border-radius: var(--radius-pill);
+  }
+  .detail-body {
+    padding: 28px 30px 34px;
+  }
+  .detail-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .detail-body h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 28px;
+    margin: 0 0 4px;
+  }
+  .detail-body .subtitle {
+    font-size: 14px;
+    color: var(--fg-dim);
+    margin: 0;
+  }
+  .log-button {
+    flex: none;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--fg-faint);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 9px 14px;
+    cursor: not-allowed;
+    white-space: nowrap;
+  }
+  .macro-panel {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: 26px;
+  }
+  .macro-panel .cell {
+    background: var(--bg-1);
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .macro-panel .cell .v {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 19px;
+    color: var(--fg);
+  }
+  .macro-panel .cell.kcal .v {
+    color: var(--amber);
+  }
+  .macro-panel .cell .l {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-faint);
+    margin-top: 3px;
+  }
+  .detail-body h2 {
+    font-family: var(--sans);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--green-hi);
+    font-weight: 700;
+    margin: 26px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ing-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .ing-list li {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+  }
+  .ing-list li .amt {
+    color: var(--fg-faint);
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .step-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .step-list li {
+    display: flex;
+    gap: 12px;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .step-list li::before {
+    counter-increment: step;
+    content: counter(step);
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--amber) 16%, transparent);
+    color: var(--amber);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--sans);
+  }
+</style>
 ```
 
 - [ ] **Step 2: Verify the build succeeds**
 
 Run: `npm run build`
-Expected: succeeds, produces `dist/en/recipes/pad-thai/index.html`, `dist/th/recipes/pad-thai/index.html`, and the same pair for `tom-yum-goong`.
+Expected: succeeds, produces detail pages for both sample recipes in both languages.
 
 - [ ] **Step 3: Manual check**
 
 Run: `npm run dev`, open `http://localhost:4321/en/recipes/pad-thai/`
-Expected: shows title, 4 macros, 5 ingredients, 5 numbered steps, all in English. Open `http://localhost:4321/th/recipes/pad-thai/` — same recipe, all fields in Thai.
+Expected: hero photo area, title + Thai subtitle, macro panel with calories in amber, ingredients, numbered steps. The "Log this meal" button is visibly present but greyed out and unclickable — hovering it shows a "Coming soon" tooltip.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add "src/pages/[lang]/recipes/[slug].astro"
-git commit -m "feat: add recipe detail page"
+git commit -m "feat: redesigned recipe detail page with non-functional AI Auang log placeholder"
 ```
 
 ---
 
-### Task 10: Tag landing pages
+### Task 11: Tag landing pages
 
 **Files:**
 - Create: `src/pages/[lang]/tags/[tag].astro`
@@ -1070,19 +1808,33 @@ const { lang } = Astro.params as { lang: "en" | "th" };
 const { tag, matches } = Astro.props;
 ---
 <Layout lang={lang} title={tag}>
-  <h1>{tag}</h1>
-  <div class="grid">
+  <h1 class="tag-title">{tag}</h1>
+  <div class="recipe-grid">
     {matches.map((entry) => (
       <RecipeCard recipe={buildIndexEntry(entry.id, entry.data)} lang={lang} />
     ))}
   </div>
 </Layout>
+
+<style>
+  .tag-title {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 26px;
+    margin: 0 0 22px;
+  }
+  .recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+</style>
 ```
 
 - [ ] **Step 2: Verify the build succeeds**
 
 Run: `npm run build`
-Expected: succeeds, produces routes like `dist/en/tags/high-protein/index.html` listing both sample recipes (both are tagged `high-protein`), and `dist/en/tags/low-carb/index.html` listing only Tom Yum Goong.
+Expected: succeeds, produces routes like `dist/en/tags/high-protein/index.html` listing both sample recipes, and `dist/en/tags/low-carb/index.html` listing only Tom Yum Goong.
 
 - [ ] **Step 3: Commit**
 
@@ -1093,7 +1845,7 @@ git commit -m "feat: add tag landing pages"
 
 ---
 
-### Task 11: Root redirect
+### Task 12: Root redirect
 
 **Files:**
 - Modify: `src/pages/index.astro` (replaces the Task 1 placeholder)
@@ -1126,7 +1878,7 @@ git commit -m "feat: redirect site root to /en/"
 
 ---
 
-### Task 12: Recipe draft script (Claude + Zod structured output)
+### Task 13: Recipe draft script (Claude + Zod structured output)
 
 **Files:**
 - Create: `scripts/draft-recipe.ts`
@@ -1371,7 +2123,7 @@ git commit -m "feat: add Claude-powered recipe draft script with retry and schem
 
 ---
 
-### Task 13: Final polish and full-suite verification
+### Task 14: Final polish and full-suite verification
 
 **Files:**
 - Modify: `package.json` (no functional change — verifying scripts are all correct)
@@ -1379,7 +2131,7 @@ git commit -m "feat: add Claude-powered recipe draft script with retry and schem
 - [ ] **Step 1: Run the full test suite**
 
 Run: `npm test`
-Expected: all tests across every file pass (recipeSchema, buildIndexEntry, filterRecipes, draft-recipe).
+Expected: all tests across every file pass (recipeSchema, buildIndexEntry, filterRecipes, sortRecipes, draft-recipe).
 
 - [ ] **Step 2: Run a full production build**
 
@@ -1389,7 +2141,7 @@ Expected: succeeds cleanly, `dist/` contains `index.html` (redirect), `en/index.
 - [ ] **Step 3: Manual smoke test with `npm run preview`**
 
 Run: `npm run preview`, open the printed local URL.
-Expected: same behavior as `npm run dev` verified in Tasks 8–9, now against the actual production build output.
+Expected: same behavior as `npm run dev` verified in Tasks 9–10, now against the actual production build output. Specifically re-check: Thai serif renders correctly on dish titles (not a tofu-box fallback), Anuphan renders for Thai body text, the two nav placeholder buttons and the detail page's log button all show visibly but are unclickable with a "coming soon" tooltip.
 
 - [ ] **Step 4: Final commit**
 
@@ -1404,7 +2156,7 @@ Review the output — expect no unstaged changes (everything was committed task-
 
 ## Out of scope for this plan (per spec Non-Goals)
 
-- AI Auang log import + recommendation engine — future, separate spec.
+- AI Auang log import + recommendation engine — future, separate spec. The "Log this meal" button and the calorie-calculator/meal-plan nav items are shipped as **visual placeholders only** in this plan (disabled, non-interactive, "coming soon" tooltip) — real wiring is that future spec's job, including the still-open import-mechanism decision (bot-generated export link vs. shared backend access).
 - User accounts / saved favorites.
 - Long-form blog-post content format.
 - Real recipe photos (the `photo` field points at plausible paths; actual images under `public/images/` are a content task for Bam, not a code task).
