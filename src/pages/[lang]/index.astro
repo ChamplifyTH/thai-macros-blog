@@ -23,7 +23,7 @@ const PRESETS = [
 ];
 ---
 <Layout lang={lang} title={lang === "th" ? "สูตรอาหาร" : "Recipes"}>
-  <script type="application/json" id="recipe-index" set:html={JSON.stringify(index)} />
+  <script type="application/json" id="recipe-index" set:html={JSON.stringify(index).replace(/</g, "\\u003c")} />
 
   <div class="filter-bar">
     <input
@@ -87,6 +87,10 @@ const PRESETS = [
 
   let activePreset = "all";
 
+  function escapeHtml(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
   function presetToFilters(preset: string): Partial<RecipeFilters> {
     switch (preset) {
       case "high-protein":
@@ -126,12 +130,13 @@ const PRESETS = [
 
     grid.innerHTML = results
       .map((r) => {
-        const title = lang === "th" ? r.title_th : r.title_en;
-        const subtitle = lang === "th" ? r.title_en : r.title_th;
+        const title = escapeHtml(lang === "th" ? r.title_th : r.title_en);
+        const subtitle = escapeHtml(lang === "th" ? r.title_en : r.title_th);
         const regionTag = r.regionTags[0];
+        const photo = escapeHtml(r.photo);
         return `<a class="recipe-card" href="/${lang}/recipes/${r.id}">
-          <div class="card-photo" style="background-image: url(${r.photo})">
-            ${regionTag ? `<span class="region-tag">${regionTag}</span>` : ""}
+          <div class="card-photo" style="background-image: url(${photo})">
+            ${regionTag ? `<span class="region-tag">${escapeHtml(regionTag)}</span>` : ""}
           </div>
           <div class="card-body">
             <h3>${title}</h3>
