@@ -1,0 +1,24 @@
+{
+  "name": "thai-macros-blog",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test": "vitest run",
+    "draft": "tsx --env-file=.env scripts/draft-recipe.ts"
+  },
+  "dependencies": {
+    "astro": "^5.1.0",
+    "zod": "^3.24.1",
+    "@anthropic-ai/sdk": "^0.68.0",
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8",
+    "typescript": "^5.7.2",
+    "tsx": "^4.19.2"
+  }
+}
