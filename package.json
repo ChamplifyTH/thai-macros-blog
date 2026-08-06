@@ -11,17 +11,18 @@
     "draft": "tsx --env-file=.env scripts/draft-recipe.ts"
   },
   "dependencies": {
-    "astro": "^5.1.0",
-    "zod": "^3.24.1",
-    "@anthropic-ai/sdk": "^0.68.0",
-    "yaml": "^2.6.1",
-    "@fontsource/noto-serif-thai": "^5.3.0",
+    "@anthropic-ai/sdk": "^0.115.0",
     "@fontsource/anuphan": "^5.3.0",
-    "@fontsource/jetbrains-mono": "^5.3.0"
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/noto-serif-thai": "^5.3.0",
+    "astro": "^5.1.0",
+    "yaml": "^2.6.1",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
-    "vitest": "^2.1.8",
+    "@types/node": "^26.1.2",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "tsx": "^4.19.2"
+    "vitest": "^2.1.8"
   }
 }
