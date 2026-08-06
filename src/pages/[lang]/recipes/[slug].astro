@@ -1,0 +1,234 @@
+---
+// src/pages/[lang]/recipes/[slug].astro
+import { getCollection } from "astro:content";
+import Layout from "../../../components/Layout.astro";
+
+export async function getStaticPaths() {
+  const collection = await getCollection("recipes");
+  const langs = ["en", "th"] as const;
+  return langs.flatMap((lang) =>
+    collection.map((entry) => ({
+      params: { lang, slug: entry.id },
+      props: { entry },
+    }))
+  );
+}
+
+const { lang } = Astro.params as { lang: "en" | "th" };
+const { entry } = Astro.props;
+const { data } = entry;
+const title = lang === "th" ? data.title_th : data.title_en;
+const subtitle = lang === "th" ? data.title_en : data.title_th;
+const logButtonLabel = lang === "th" ? "บันทึกลง AI Auang" : "Log this meal";
+const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming soon";
+---
+<Layout lang={lang} title={title}>
+  <article class="recipe-detail">
+    <div class="hero" style={`background-image: url(${data.photo})`}>
+      {data.regionTags[0] && <span class="region-tag">{data.regionTags[0]}</span>}
+    </div>
+
+    <div class="detail-body">
+      <div class="detail-head">
+        <div>
+          <h1>{title}</h1>
+          <p class="subtitle">{subtitle}</p>
+        </div>
+        <button type="button" class="log-button" disabled title={comingSoonTitle}>
+          {logButtonLabel}
+        </button>
+      </div>
+
+      <div class="macro-panel">
+        <div class="cell kcal">
+          <div class="v">{data.calories}</div>
+          <div class="l">{lang === "th" ? "แคล" : "Calories"}</div>
+        </div>
+        <div class="cell">
+          <div class="v">{data.protein}g</div>
+          <div class="l">{lang === "th" ? "โปรตีน" : "Protein"}</div>
+        </div>
+        <div class="cell">
+          <div class="v">{data.carbs}g</div>
+          <div class="l">{lang === "th" ? "คาร์บ" : "Carbs"}</div>
+        </div>
+        <div class="cell">
+          <div class="v">{data.fat}g</div>
+          <div class="l">{lang === "th" ? "ไขมัน" : "Fat"}</div>
+        </div>
+      </div>
+
+      <h2>{lang === "th" ? "ส่วนผสม" : "Ingredients"}</h2>
+      <ul class="ing-list">
+        {data.ingredients.map((ing) => (
+          <li>
+            <span>{lang === "th" ? ing.name_th : ing.name_en}</span>
+            <span class="amt">{ing.amount}</span>
+          </li>
+        ))}
+      </ul>
+
+      <h2>{lang === "th" ? "วิธีทำ" : "Steps"}</h2>
+      <ol class="step-list">
+        {data.steps.map((step) => (
+          <li>{lang === "th" ? step.th : step.en}</li>
+        ))}
+      </ol>
+    </div>
+  </article>
+</Layout>
+
+<style>
+  .recipe-detail {
+    max-width: 640px;
+    margin: 0 auto;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .hero {
+    aspect-ratio: 16 / 9;
+    background-color: var(--bg-2);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: flex-end;
+    padding: 22px;
+  }
+  .region-tag {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--fg);
+    padding: 5px 11px;
+    border-radius: var(--radius-pill);
+  }
+  .detail-body {
+    padding: 28px 30px 34px;
+  }
+  .detail-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .detail-body h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 28px;
+    margin: 0 0 4px;
+  }
+  .detail-body .subtitle {
+    font-size: 14px;
+    color: var(--fg-dim);
+    margin: 0;
+  }
+  .log-button {
+    flex: none;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--fg-faint);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 9px 14px;
+    cursor: not-allowed;
+    white-space: nowrap;
+  }
+  .macro-panel {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: 26px;
+  }
+  .macro-panel .cell {
+    background: var(--bg-1);
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .macro-panel .cell .v {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 19px;
+    color: var(--fg);
+  }
+  .macro-panel .cell.kcal .v {
+    color: var(--amber);
+  }
+  .macro-panel .cell .l {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-faint);
+    margin-top: 3px;
+  }
+  .detail-body h2 {
+    font-family: var(--sans);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--green-hi);
+    font-weight: 700;
+    margin: 26px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ing-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .ing-list li {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+  }
+  .ing-list li .amt {
+    color: var(--fg-faint);
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .step-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .step-list li {
+    display: flex;
+    gap: 12px;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .step-list li::before {
+    counter-increment: step;
+    content: counter(step);
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--amber) 16%, transparent);
+    color: var(--amber);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--sans);
+  }
+</style>
