@@ -1,0 +1,115 @@
+---
+// src/components/Layout.astro
+import "@fontsource/noto-serif-thai/600.css";
+import "@fontsource/anuphan/400.css";
+import "@fontsource/anuphan/600.css";
+import "@fontsource/anuphan/700.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/700.css";
+import "../styles/tokens.css";
+
+interface Props {
+  lang: "en" | "th";
+  title: string;
+}
+const { lang, title } = Astro.props;
+
+const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming soon";
+---
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — Thai Macros</title>
+  </head>
+  <body>
+    <nav class="site-nav">
+      <a class="wordmark" href={`/${lang}/`}>
+        Thai<span class="accent-dot">·</span>Macros
+      </a>
+      <div class="nav-links">
+        <a href={`/${lang}/`}>{lang === "th" ? "สูตรอาหาร" : "Recipes"}</a>
+        <button type="button" class="nav-placeholder" disabled title={comingSoonTitle}>
+          {lang === "th" ? "คำนวณแคล" : "Calorie calculator"}
+        </button>
+        <button type="button" class="nav-placeholder" disabled title={comingSoonTitle}>
+          {lang === "th" ? "แผนมื้ออาหาร" : "Meal plan"}
+        </button>
+      </div>
+      <div class="lang-toggle">
+        <a href="/en/" aria-current={lang === "en" ? "page" : undefined}>EN</a>
+        <a href="/th/" aria-current={lang === "th" ? "page" : undefined}>TH</a>
+      </div>
+    </nav>
+    <main class="page">
+      <slot />
+    </main>
+  </body>
+</html>
+
+<style>
+  .site-nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .wordmark {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 19px;
+    text-decoration: none;
+    color: var(--fg);
+  }
+  .wordmark .accent-dot {
+    color: var(--green-hi);
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex: 1;
+    font-size: 13.5px;
+  }
+  .nav-links a {
+    text-decoration: none;
+    color: var(--fg-dim);
+  }
+  .nav-placeholder {
+    background: none;
+    border: none;
+    color: var(--fg-faint);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    cursor: not-allowed;
+    padding: 0;
+  }
+  .lang-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    padding: 3px;
+  }
+  .lang-toggle a {
+    text-decoration: none;
+    color: var(--fg-dim);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    display: inline-block;
+  }
+  .lang-toggle a[aria-current="page"] {
+    background: var(--green);
+    color: var(--bg-0);
+  }
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 28px 80px;
+  }
+</style>
