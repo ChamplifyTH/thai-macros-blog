@@ -1,0 +1,61 @@
+---
+// src/pages/[lang]/tags/[tag].astro
+import { getCollection } from "astro:content";
+import Layout from "../../../components/Layout.astro";
+import RecipeCard from "../../../components/RecipeCard.astro";
+import { buildIndexEntry } from "../../../lib/buildIndexEntry";
+
+export async function getStaticPaths() {
+  const collection = await getCollection("recipes");
+  const allTags = new Set<string>();
+  for (const entry of collection) {
+    for (const tag of [
+      ...entry.data.dietTags,
+      ...entry.data.mealTypeTags,
+      ...entry.data.regionTags,
+    ]) {
+      allTags.add(tag);
+    }
+  }
+  const langs = ["en", "th"] as const;
+  return langs.flatMap((lang) =>
+    [...allTags].map((tag) => ({
+      params: { lang, tag },
+      props: {
+        tag,
+        matches: collection.filter(
+          (entry) =>
+            entry.data.dietTags.includes(tag) ||
+            entry.data.mealTypeTags.includes(tag) ||
+            entry.data.regionTags.includes(tag)
+        ),
+      },
+    }))
+  );
+}
+
+const { lang } = Astro.params as { lang: "en" | "th" };
+const { tag, matches } = Astro.props;
+---
+<Layout lang={lang} title={tag}>
+  <h1 class="tag-title">{tag}</h1>
+  <div class="recipe-grid">
+    {matches.map((entry) => (
+      <RecipeCard recipe={buildIndexEntry(entry.id, entry.data)} lang={lang} />
+    ))}
+  </div>
+</Layout>
+
+<style>
+  .tag-title {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 26px;
+    margin: 0 0 22px;
+  }
+  .recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+</style>
