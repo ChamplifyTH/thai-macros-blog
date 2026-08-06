@@ -1,0 +1,347 @@
+---
+// src/pages/[lang]/index.astro
+import { getCollection } from "astro:content";
+import Layout from "../../components/Layout.astro";
+import RecipeCard from "../../components/RecipeCard.astro";
+import { buildIndexEntry } from "../../lib/buildIndexEntry";
+
+export async function getStaticPaths() {
+  return [{ params: { lang: "en" } }, { params: { lang: "th" } }];
+}
+
+const { lang } = Astro.params as { lang: "en" | "th" };
+const collection = await getCollection("recipes");
+const index = collection.map((entry) => buildIndexEntry(entry.id, entry.data));
+
+const PRESETS = [
+  { id: "all", th: "ทั้งหมด", en: "All" },
+  { id: "high-protein", th: "โปรตีนสูง", en: "High protein" },
+  { id: "low-cal", th: "แคลต่ำ", en: "Low cal" },
+  { id: "low-carb", th: "คาร์บต่ำ", en: "Low carb" },
+  { id: "vegetarian", th: "มังสวิรัติ", en: "Vegetarian" },
+  { id: "one-dish", th: "จานเดียว", en: "One dish" },
+];
+---
+<Layout lang={lang} title={lang === "th" ? "สูตรอาหาร" : "Recipes"}>
+  <script type="application/json" id="recipe-index" set:html={JSON.stringify(index)} />
+
+  <div class="filter-bar">
+    <input
+      type="search"
+      id="search-input"
+      class="search-field"
+      placeholder={lang === "th" ? "ค้นหาเมนู" : "Search dishes"}
+    />
+    <div class="range-field">
+      <span class="range-label">{lang === "th" ? "แคล/เสิร์ฟ ≤" : "kcal/serving ≤"}</span>
+      <input type="number" id="max-calories" min="0" />
+    </div>
+    <select id="sort-select" class="sort-select">
+      <option value="">{lang === "th" ? "เรียงตาม" : "Sort"}</option>
+      <option value="protein-desc">{lang === "th" ? "โปรตีนสูงสุด" : "Protein ↓"}</option>
+      <option value="protein-asc">{lang === "th" ? "โปรตีนต่ำสุด" : "Protein ↑"}</option>
+      <option value="calories-asc">{lang === "th" ? "แคลน้อยสุด" : "Calories ↑"}</option>
+      <option value="calories-desc">{lang === "th" ? "แคลมากสุด" : "Calories ↓"}</option>
+    </select>
+  </div>
+
+  <div class="preset-row" id="preset-row">
+    {PRESETS.map((p) => (
+      <button type="button" class={p.id === "all" ? "chip on" : "chip"} data-preset={p.id}>
+        {lang === "th" ? p.th : p.en}
+      </button>
+    ))}
+  </div>
+
+  <div class="grid-title">
+    <h2>{lang === "th" ? "สูตรอาหาร" : "Recipes"}</h2>
+    <span class="count" id="result-count"></span>
+  </div>
+
+  <p id="empty-state" hidden>
+    {lang === "th" ? "ไม่พบสูตรอาหารที่ตรงกัน ลองปรับตัวกรอง" : "No recipes match, try loosening filters"}
+  </p>
+
+  <div id="recipe-grid" class="recipe-grid">
+    {collection.map((entry) => (
+      <RecipeCard recipe={buildIndexEntry(entry.id, entry.data)} lang={lang} />
+    ))}
+  </div>
+</Layout>
+
+<script>
+  import { filterRecipes, type RecipeFilters } from "../../lib/filterRecipes";
+  import { sortRecipes, type SortField, type SortDirection } from "../../lib/sortRecipes";
+  import type { RecipeIndexEntry } from "../../lib/buildIndexEntry";
+
+  const dataEl = document.getElementById("recipe-index");
+  const allRecipes: RecipeIndexEntry[] = JSON.parse(dataEl?.textContent ?? "[]");
+  const grid = document.getElementById("recipe-grid") as HTMLDivElement;
+  const emptyState = document.getElementById("empty-state") as HTMLParagraphElement;
+  const resultCount = document.getElementById("result-count") as HTMLSpanElement;
+  const searchInput = document.getElementById("search-input") as HTMLInputElement;
+  const maxCaloriesInput = document.getElementById("max-calories") as HTMLInputElement;
+  const sortSelect = document.getElementById("sort-select") as HTMLSelectElement;
+  const presetRow = document.getElementById("preset-row") as HTMLDivElement;
+  const lang = (document.documentElement.lang === "th" ? "th" : "en") as "th" | "en";
+
+  let activePreset = "all";
+
+  function presetToFilters(preset: string): Partial<RecipeFilters> {
+    switch (preset) {
+      case "high-protein":
+        return { dietTags: ["high-protein"] };
+      case "low-cal":
+        return { maxCalories: 300 };
+      case "low-carb":
+        return { dietTags: ["low-carb"] };
+      case "vegetarian":
+        return { dietTags: ["vegetarian"] };
+      case "one-dish":
+        return { mealTypeTags: ["one-dish"] };
+      default:
+        return {};
+    }
+  }
+
+  function render() {
+    const search = searchInput.value.trim();
+    const manualMaxCalories = maxCaloriesInput.value ? Number(maxCaloriesInput.value) : undefined;
+    const presetFilters = presetToFilters(activePreset);
+
+    const filters: RecipeFilters = {
+      lang,
+      search: search || undefined,
+      maxCalories: presetFilters.maxCalories ?? manualMaxCalories,
+      dietTags: presetFilters.dietTags,
+      mealTypeTags: presetFilters.mealTypeTags,
+    };
+
+    let results = filterRecipes(allRecipes, filters);
+
+    if (sortSelect.value) {
+      const [field, direction] = sortSelect.value.split("-") as [SortField, SortDirection];
+      results = sortRecipes(results, field, direction);
+    }
+
+    grid.innerHTML = results
+      .map((r) => {
+        const title = lang === "th" ? r.title_th : r.title_en;
+        const subtitle = lang === "th" ? r.title_en : r.title_th;
+        const regionTag = r.regionTags[0];
+        return `<a class="recipe-card" href="/${lang}/recipes/${r.id}">
+          <div class="card-photo" style="background-image: url(${r.photo})">
+            ${regionTag ? `<span class="region-tag">${regionTag}</span>` : ""}
+          </div>
+          <div class="card-body">
+            <h3>${title}</h3>
+            <p class="subtitle">${subtitle}</p>
+            <div class="macro-strip">
+              <div class="m kcal"><span class="v">${r.calories}</span><span class="l">kcal</span></div>
+              <div class="m"><span class="v">${r.protein}g</span><span class="l">protein</span></div>
+              <div class="m"><span class="v">${r.carbs}g</span><span class="l">carbs</span></div>
+              <div class="m"><span class="v">${r.fat}g</span><span class="l">fat</span></div>
+            </div>
+          </div>
+        </a>`;
+      })
+      .join("");
+
+    emptyState.hidden = results.length > 0;
+    grid.hidden = results.length === 0;
+    resultCount.textContent =
+      lang === "th" ? `${results.length} เมนูที่ตรงกับเงื่อนไข` : `${results.length} recipes matched`;
+  }
+
+  searchInput.addEventListener("input", render);
+  maxCaloriesInput.addEventListener("input", render);
+  sortSelect.addEventListener("change", render);
+  presetRow.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-preset]");
+    if (!button) return;
+    activePreset = button.dataset.preset ?? "all";
+    presetRow.querySelectorAll(".chip").forEach((chip) => chip.classList.remove("on"));
+    button.classList.add("on");
+    render();
+  });
+
+  render();
+</script>
+
+<style>
+  .filter-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .search-field {
+    flex: 1;
+    min-width: 200px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 13.5px;
+  }
+  .search-field::placeholder {
+    color: var(--fg-faint);
+  }
+  .range-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+  }
+  .range-label {
+    font-size: 12px;
+    color: var(--fg-faint);
+    white-space: nowrap;
+  }
+  .range-field input {
+    width: 64px;
+    background: none;
+    border: none;
+    color: var(--fg);
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+  }
+  .sort-select {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 13px;
+  }
+  .preset-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
+  .chip {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    padding: 7px 14px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    color: var(--fg-dim);
+    background: var(--bg-1);
+    cursor: pointer;
+  }
+  .chip.on {
+    background: color-mix(in srgb, var(--green) 16%, transparent);
+    border-color: var(--green);
+    color: var(--green-hi);
+    font-weight: 600;
+  }
+  .grid-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .grid-title h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 22px;
+    margin: 0;
+  }
+  .grid-title .count {
+    color: var(--fg-faint);
+    font-size: 12.5px;
+  }
+  .recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  /* Duplicated from RecipeCard.astro — see the note in Task 8 Step 2. Needed
+     because the client script's render() re-renders cards as raw HTML strings
+     on every filter change, and Astro component <style> blocks can't be
+     imported into a <script> tag. */
+  #recipe-grid :global(.recipe-card) {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  #recipe-grid :global(.recipe-card:hover) {
+    border-color: var(--line-strong);
+    transform: translateY(-2px);
+  }
+  #recipe-grid :global(.card-photo) {
+    aspect-ratio: 4 / 3;
+    background-color: var(--bg-2);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+  }
+  #recipe-grid :global(.region-tag) {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--fg);
+    padding: 4px 9px;
+    border-radius: var(--radius-pill);
+  }
+  #recipe-grid :global(.card-body) {
+    padding: 14px 16px 16px;
+  }
+  #recipe-grid :global(.card-body h3) {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 17px;
+    margin: 0 0 2px;
+    line-height: 1.25;
+  }
+  #recipe-grid :global(.card-body .subtitle) {
+    font-size: 12.5px;
+    color: var(--fg-faint);
+    margin: 0 0 10px;
+  }
+  #recipe-grid :global(.macro-strip) {
+    display: flex;
+    gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+  #recipe-grid :global(.macro-strip .m) {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  #recipe-grid :global(.macro-strip .m .v) {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--fg);
+  }
+  #recipe-grid :global(.macro-strip .m .l) {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-faint);
+  }
+  #recipe-grid :global(.macro-strip .m.kcal .v) {
+    color: var(--amber);
+  }
+</style>
