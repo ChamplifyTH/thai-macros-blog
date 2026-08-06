@@ -1,0 +1,38 @@
+/* src/styles/tokens.css */
+:root {
+  --bg-0: #0a0d0f;
+  --bg-1: #0f1316;
+  --bg-2: #151a1e;
+  --bg-3: #1c2226;
+  --line: rgba(221, 227, 225, 0.08);
+  --line-strong: rgba(221, 227, 225, 0.16);
+  --fg: #dde3e1;
+  --fg-dim: #8f9a97;
+  --fg-faint: #5a6562;
+  --green: #3fa877;
+  --green-hi: #58c48f;
+  --amber: #f5a623;
+  --serif: "Noto Serif Thai", serif;
+  --sans: "Anuphan", -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-pill: 999px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+a {
+  color: inherit;
+}
