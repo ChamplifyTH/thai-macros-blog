@@ -55,4 +55,9 @@ describe("recipeSchema", () => {
       expect(result.data.regionTags).toEqual([]);
     }
   });
+
+  it("accepts a recipe with a zero macro value", () => {
+    const result = recipeSchema.safeParse({ ...validRecipe, fat: 0 });
+    expect(result.success).toBe(true);
+  });
 });
