@@ -57,7 +57,12 @@ export async function draftRecipe(
 ): Promise<Recipe | null> {
   const response = await withRetry(() =>
     client.messages.create({
-      model: "claude-opus-4-6",
+      // claude-opus-5 is the current Opus model in this environment as of this
+      // writing; the plan's "claude-opus-4-7" predates it. A wrong/retired model
+      // id fails every retry attempt identically (non-transient), so withRetry
+      // just burns its backoff window before giving up — keep this pinned to
+      // the current model rather than a stale one.
+      model: "claude-opus-5",
       max_tokens: 16000,
       messages: [
         {
