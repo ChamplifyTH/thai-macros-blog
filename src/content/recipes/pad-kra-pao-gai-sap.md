@@ -1,33 +1,33 @@
 ---
 title_th: "ผัดกะเพราไก่สับ"
-title_en: "Pad Kra Pao Gai Sap (Stir-Fried Chicken with Holy Basil)"
+title_en: "Pad Kra Pao Gai Sap (Stir-Fried Chicken with Holy Basil, Fried Egg)"
 photo: "/images/pad-kra-pao-gai-sap.jpg"
-calories: 405
-protein: 37
-carbs: 51
-fat: 5
+calories: 475
+protein: 43
+carbs: 52
+fat: 10
 proteinOptions:
   - label_th: "อกไก่สับ"
     label_en: "Ground chicken breast"
     amount: "150g"
-    calories: 405
-    protein: 37
-    carbs: 51
-    fat: 5
+    calories: 475
+    protein: 43
+    carbs: 52
+    fat: 10
   - label_th: "หมูสันในสับ"
     label_en: "Ground pork tenderloin"
     amount: "150g"
-    calories: 455
-    protein: 45
-    carbs: 51
-    fat: 6
+    calories: 525
+    protein: 51
+    carbs: 52
+    fat: 11
   - label_th: "เนื้อสันในสับ"
     label_en: "Ground lean beef"
     amount: "150g"
-    calories: 465
-    protein: 39
-    carbs: 51
-    fat: 10
+    calories: 535
+    protein: 45
+    carbs: 52
+    fat: 15
 ingredients:
   - name_th: "อกไก่สับ"
     name_en: "Ground chicken breast"
@@ -50,6 +50,9 @@ ingredients:
   - name_th: "ข้าวสวย"
     name_en: "Steamed rice"
     amount: "150g"
+  - name_th: "ไข่ดาว"
+    name_en: "Fried egg"
+    amount: "1 large"
 dietTags:
   - "high-protein"
 mealTypeTags:
@@ -67,6 +70,8 @@ steps:
     en: "Add the ground chicken breast, stir-fry until fully cooked"
   - th: "ปรุงรสด้วยซีอิ๊วขาวและน้ำมันหอย ผัดให้เข้ากัน"
     en: "Season with light soy sauce and oyster sauce, stir to combine"
-  - th: "ใส่ใบกะเพรา ผัดเร็วๆ แล้วปิดไฟ เสิร์ฟกับข้าวสวย"
-    en: "Add holy basil leaves, toss quickly, turn off heat, and serve with steamed rice"
+  - th: "ใส่ใบกะเพรา ผัดเร็วๆ แล้วปิดไฟ"
+    en: "Add holy basil leaves, toss quickly, turn off heat"
+  - th: "ทอดไข่ดาวแยกต่างหาก เสิร์ฟบนข้าวสวยพร้อมกะเพราที่ผัดไว้"
+    en: "Fry the egg separately, serve over steamed rice alongside the stir-fry"
 ---
