@@ -22,6 +22,17 @@ const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming so
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title} — Thai Macros</title>
+    <script is:inline>
+      // Iframe-embed mode (FitPang-Bot's community.html Cookbook tab loads this site
+      // with ?embed=1). This site builds fully static (output: "static") — there's
+      // no server at request time to read a query string, so the flag has to be
+      // detected client-side. Runs synchronously, before <body> renders, so the nav
+      // never flashes before CSS hides it (same pattern as dark-mode-detection
+      // inline scripts).
+      if (new URLSearchParams(location.search).get("embed") === "1") {
+        document.documentElement.classList.add("embed");
+      }
+    </script>
   </head>
   <body>
     <nav class="site-nav">
@@ -111,5 +122,11 @@ const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming so
     max-width: 1180px;
     margin: 0 auto;
     padding: 32px 28px 80px;
+  }
+  :global(html.embed) .site-nav {
+    display: none;
+  }
+  :global(html.embed) .page {
+    padding: 14px 14px 40px;
   }
 </style>
