@@ -37,7 +37,7 @@ export async function getStaticPaths() {
 const { lang } = Astro.params as { lang: "en" | "th" };
 const { tag, matches } = Astro.props;
 ---
-<Layout lang={lang} title={tag}>
+<Layout lang={lang} title={tag} showEmbedBack>
   <h1 class="tag-title">{tag}</h1>
   <div class="recipe-grid">
     {matches.map((entry) => (

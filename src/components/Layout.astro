@@ -11,8 +11,12 @@ import "../styles/tokens.css";
 interface Props {
   lang: "en" | "th";
   title: string;
+  // Show a "← Back to recipes" link in embed mode. Only pages reached BY
+  // clicking through from the browse index (recipe detail, tag pages) should
+  // pass this — the index itself is the entry point, nothing to go back to.
+  showEmbedBack?: boolean;
 }
-const { lang, title } = Astro.props;
+const { lang, title, showEmbedBack = false } = Astro.props;
 
 const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming soon";
 ---
@@ -32,6 +36,26 @@ const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming so
       if (new URLSearchParams(location.search).get("embed") === "1") {
         document.documentElement.classList.add("embed");
       }
+      // Propagate embed mode through internal navigation. Recipe cards
+      // (client-rendered on the index page) and tag-page links are built
+      // without any knowledge of embed mode, so without this, clicking from
+      // the embedded browse grid into a recipe drops the flag — the full
+      // site-nav header (with links that go nowhere useful inside the
+      // iframe) reappears, which is also wider than the iframe and causes
+      // horizontal scroll. Event delegation on document, not a one-time DOM
+      // scan, because some of those links don't exist yet when this script
+      // runs (added later by the index page's own script).
+      document.addEventListener("click", (event) => {
+        if (!document.documentElement.classList.contains("embed")) return;
+        const link = event.target && event.target.closest && event.target.closest("a[href]");
+        if (!link) return;
+        const url = new URL(link.href, location.href);
+        if (url.origin !== location.origin) return;
+        if (url.searchParams.get("embed") === "1") return;
+        event.preventDefault();
+        url.searchParams.set("embed", "1");
+        location.href = url.toString();
+      });
     </script>
   </head>
   <body>
@@ -54,6 +78,11 @@ const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming so
       </div>
     </nav>
     <main class="page">
+      {showEmbedBack && (
+        <a class="embed-back" href={`/${lang}/?embed=1`}>
+          ← {lang === "th" ? "กลับไปที่สูตรอาหาร" : "Back to recipes"}
+        </a>
+      )}
       <slot />
     </main>
   </body>
@@ -128,5 +157,16 @@ const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming so
   }
   :global(html.embed) .page {
     padding: 14px 14px 40px;
+  }
+  .embed-back {
+    display: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg-dim);
+    text-decoration: none;
+    margin-bottom: 14px;
+  }
+  :global(html.embed) .embed-back {
+    display: inline-flex;
   }
 </style>

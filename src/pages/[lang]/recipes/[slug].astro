@@ -22,7 +22,7 @@ const subtitle = lang === "th" ? data.title_en : data.title_th;
 const logButtonLabel = lang === "th" ? "บันทึกลง AI Auang" : "Log this meal";
 const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming soon";
 ---
-<Layout lang={lang} title={title}>
+<Layout lang={lang} title={title} showEmbedBack>
   <article class="recipe-detail">
     <div class="hero" style={`background-image: url(${data.photo})`}>
       {data.regionTags[0] && <span class="region-tag">{data.regionTags[0]}</span>}
