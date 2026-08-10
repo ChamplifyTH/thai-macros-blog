@@ -60,4 +60,33 @@ describe("recipeSchema", () => {
     const result = recipeSchema.safeParse({ ...validRecipe, fat: 0 });
     expect(result.success).toBe(true);
   });
+
+  it("accepts a recipe with proteinOptions (at least 2 entries)", () => {
+    const result = recipeSchema.safeParse({
+      ...validRecipe,
+      proteinOptions: [
+        { label_th: "อกไก่", label_en: "Chicken breast", amount: "150g", calories: 486, protein: 22, carbs: 58, fat: 18 },
+        { label_th: "หมูสันใน", label_en: "Pork tenderloin", amount: "150g", calories: 536, protein: 30, carbs: 58, fat: 19 },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects proteinOptions with fewer than 2 entries (a single option isn't a swap)", () => {
+    const result = recipeSchema.safeParse({
+      ...validRecipe,
+      proteinOptions: [
+        { label_th: "อกไก่", label_en: "Chicken breast", amount: "150g", calories: 486, protein: 22, carbs: 58, fat: 18 },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("omitting proteinOptions is valid (most recipes won't have a protein swap)", () => {
+    const result = recipeSchema.safeParse(validRecipe);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.proteinOptions).toBeUndefined();
+    }
+  });
 });

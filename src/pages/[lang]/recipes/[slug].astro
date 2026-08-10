@@ -39,24 +39,49 @@ const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming so
         </button>
       </div>
 
+      {data.proteinOptions && (
+        <div class="protein-chips" id="protein-chips">
+          {data.proteinOptions.map((opt, i) => (
+            <button
+              type="button"
+              class={i === 0 ? "protein-chip on" : "protein-chip"}
+              data-cal={opt.calories}
+              data-protein={opt.protein}
+              data-carbs={opt.carbs}
+              data-fat={opt.fat}
+              data-amount={opt.amount}
+            >
+              {lang === "th" ? opt.label_th : opt.label_en}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div class="macro-panel">
         <div class="cell kcal">
-          <div class="v">{data.calories}</div>
+          <div class="v" id="macro-cal">{data.calories}</div>
           <div class="l">{lang === "th" ? "แคล" : "Calories"}</div>
         </div>
         <div class="cell">
-          <div class="v">{data.protein}g</div>
+          <div class="v" id="macro-protein">{data.protein}g</div>
           <div class="l">{lang === "th" ? "โปรตีน" : "Protein"}</div>
         </div>
         <div class="cell">
-          <div class="v">{data.carbs}g</div>
+          <div class="v" id="macro-carbs">{data.carbs}g</div>
           <div class="l">{lang === "th" ? "คาร์บ" : "Carbs"}</div>
         </div>
         <div class="cell">
-          <div class="v">{data.fat}g</div>
+          <div class="v" id="macro-fat">{data.fat}g</div>
           <div class="l">{lang === "th" ? "ไขมัน" : "Fat"}</div>
         </div>
       </div>
+      {data.proteinOptions && (
+        <p class="protein-note">
+          {lang === "th"
+            ? "ส่วนผสมและวิธีทำด้านล่างเขียนไว้สำหรับโปรตีนที่เลือกไว้เริ่มต้น — สลับโปรตีนด้านบนเพื่อดูแมคโครที่เปลี่ยนไป ส่วนผสม/ปริมาณส่วนที่เหลือใช้เท่าเดิม"
+            : "Ingredients and steps below are written for the default protein — switch above to see how the macros change; the rest of the ingredients/amounts stay the same."}
+        </p>
+      )}
 
       <h2>{lang === "th" ? "ส่วนผสม" : "Ingredients"}</h2>
       <ul class="ing-list">
@@ -77,6 +102,26 @@ const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming so
     </div>
   </article>
 </Layout>
+
+<script>
+  const chipRow = document.getElementById("protein-chips");
+  if (chipRow) {
+    const calEl = document.getElementById("macro-cal");
+    const proteinEl = document.getElementById("macro-protein");
+    const carbsEl = document.getElementById("macro-carbs");
+    const fatEl = document.getElementById("macro-fat");
+    chipRow.addEventListener("click", (event) => {
+      const chip = (event.target as HTMLElement).closest<HTMLButtonElement>(".protein-chip");
+      if (!chip) return;
+      chipRow.querySelectorAll(".protein-chip").forEach((c) => c.classList.remove("on"));
+      chip.classList.add("on");
+      if (calEl) calEl.textContent = chip.dataset.cal ?? "";
+      if (proteinEl) proteinEl.textContent = `${chip.dataset.protein}g`;
+      if (carbsEl) carbsEl.textContent = `${chip.dataset.carbs}g`;
+      if (fatEl) fatEl.textContent = `${chip.dataset.fat}g`;
+    });
+  }
+</script>
 
 <style>
   .recipe-detail {
@@ -139,6 +184,34 @@ const comingSoonTitle = lang === "th" ? "เร็วๆ นี้" : "Coming so
     padding: 9px 14px;
     cursor: not-allowed;
     white-space: nowrap;
+  }
+  .protein-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .protein-chip {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    padding: 7px 14px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    color: var(--fg-dim);
+    background: var(--bg-1);
+    cursor: pointer;
+  }
+  .protein-chip.on {
+    background: color-mix(in srgb, var(--green) 16%, transparent);
+    border-color: var(--green);
+    color: var(--green-hi);
+    font-weight: 600;
+  }
+  .protein-note {
+    font-size: 12px;
+    color: var(--fg-faint);
+    line-height: 1.5;
+    margin: 0 0 22px;
   }
   .macro-panel {
     display: grid;
